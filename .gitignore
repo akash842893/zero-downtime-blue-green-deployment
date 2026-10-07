@@ -1,0 +1,52 @@
+# Environment files & credentials
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+id_rsa
+*.pkcs12
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+frontend/dist/
+frontend/node_modules/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.venv/
+backend/__pycache__/
+backend/tests/__pycache__/
+.pytest_cache/
+*.db
+*.sqlite3
+local_test.db
+local_tasks.db
+
+# Nginx active state (runtime symlink/include)
+nginx/active.conf
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.backup
+*.tfvars
+!terraform.tfvars.example
+
+# IDE & OS
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
