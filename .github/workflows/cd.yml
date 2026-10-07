@@ -1,0 +1,79 @@
+name: CD Pipeline - Blue-Green Release
+
+on:
+  workflow_run:
+    workflows: ["CI Pipeline"]
+    branches: [main, master]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      release_version:
+        description: 'Semantic Version Tag (e.g., 1.2.0)'
+        required: false
+        default: '1.2.0'
+
+jobs:
+  deploy-blue-green:
+    name: Zero-Downtime Blue-Green Release
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set Image Tag Variables
+        id: vars
+        run: |
+          VERSION="${{ github.event.inputs.release_version || '1.1.0' }}"
+          SHA_SHORT=$(git rev-parse --short HEAD)
+          echo "VERSION_TAG=${VERSION}" >> $GITHUB_OUTPUT
+          echo "COMMIT_SHA=${SHA_SHORT}" >> $GITHUB_OUTPUT
+          echo "Immutable Tag: ${VERSION}-${SHA_SHORT}"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Tagged Production Backend Image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          push: false
+          tags: |
+            zero-downtime-backend:latest
+            zero-downtime-backend:${{ steps.vars.outputs.VERSION_TAG }}
+            zero-downtime-backend:${{ steps.vars.outputs.COMMIT_SHA }}
+
+      - name: Build Tagged Production Frontend Image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          file: ./frontend/Dockerfile
+          push: false
+          tags: |
+            zero-downtime-frontend:latest
+            zero-downtime-frontend:${{ steps.vars.outputs.VERSION_TAG }}
+            zero-downtime-frontend:${{ steps.vars.outputs.COMMIT_SHA }}
+
+      - name: Execute Blue-Green SSH Deployment
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          SERVER_HOST: ${{ secrets.DEPLOY_HOST }}
+          SERVER_USER: ${{ secrets.DEPLOY_USER || 'ec2-user' }}
+        run: |
+          if [ -z "${SSH_PRIVATE_KEY:-}" ] || [ -z "${SERVER_HOST:-}" ]; then
+            echo "================================================================================="
+            echo "NOTICE: Cloud deployment secrets (DEPLOY_SSH_KEY / DEPLOY_HOST) not configured."
+            echo "Workflow prepared correctly for production. Stopping before SSH connection."
+            echo "================================================================================="
+            exit 0
+          fi
+
+          # Setup SSH Agent & Deploy via Remote Orchestrator
+          mkdir -p ~/.ssh
+          echo "${SSH_PRIVATE_KEY}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H "${SERVER_HOST}" >> ~/.ssh/known_hosts
+
+          ssh "${SERVER_USER}@${SERVER_HOST}" "cd /opt/zero-downtime-deployment && git pull && ./scripts/deploy.sh ${{ steps.vars.outputs.COMMIT_SHA }}"
