@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-service
+  namespace: zero-downtime-platform
+spec:
+  type: ClusterIP
+  selector:
+    app: zero-downtime-backend
+    environment: blue # Change to 'green' to switch active production traffic in Kubernetes
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8000

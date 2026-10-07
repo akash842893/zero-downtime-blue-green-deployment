@@ -1,0 +1,50 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend-blue
+  namespace: zero-downtime-platform
+  labels:
+    app: zero-downtime-backend
+    environment: blue
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: zero-downtime-backend
+      environment: blue
+  template:
+    metadata:
+      labels:
+        app: zero-downtime-backend
+        environment: blue
+    spec:
+      containers:
+        - name: backend
+          image: zero-downtime-backend:1.0.0
+          ports:
+            - containerPort: 8000
+          env:
+            - name: DEPLOYMENT_ENV
+              value: "blue"
+            - name: APP_VERSION
+              valueFrom:
+                configMapKeyRef:
+                  name: platform-config
+                  key: APP_VERSION
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: platform-secrets
+                  key: DATABASE_URL
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 5

@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend-green
+  namespace: zero-downtime-platform
+  labels:
+    app: zero-downtime-backend
+    environment: green
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: zero-downtime-backend
+      environment: green
+  template:
+    metadata:
+      labels:
+        app: zero-downtime-backend
+        environment: green
+    spec:
+      containers:
+        - name: backend
+          image: zero-downtime-backend:1.1.0
+          ports:
+            - containerPort: 8000
+          env:
+            - name: DEPLOYMENT_ENV
+              value: "green"
+            - name: APP_VERSION
+              value: "1.1.0"
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: platform-secrets
+                  key: DATABASE_URL
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 5

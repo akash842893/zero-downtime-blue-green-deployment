@@ -1,0 +1,6 @@
+# Copy to terraform.tfvars and customize values
+aws_region    = "us-east-1"
+environment   = "production"
+instance_type = "t3.micro"
+key_name      = "my-aws-ec2-keypair"
+db_password   = "SuperSecretProductionDBPassword123!"
